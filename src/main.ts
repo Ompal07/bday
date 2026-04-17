@@ -23,6 +23,7 @@ const state = {
   cakeCelebrating: false,
   giftNotice: null as string | null,
   giftNoticeTimer: 0,
+  backgroundResumeTime: null as number | null,
 };
 
 const audio = {
@@ -39,6 +40,14 @@ const sameAsset = (track: HTMLAudioElement, src: string): boolean => track.src =
 const stopAudioTrack = (track: HTMLAudioElement): void => {
   track.pause();
   track.currentTime = 0;
+  track.onloadedmetadata = null;
+  track.ontimeupdate = null;
+  track.onended = null;
+  track.onerror = null;
+};
+
+const pauseAudioTrack = (track: HTMLAudioElement): void => {
+  track.pause();
   track.onloadedmetadata = null;
   track.ontimeupdate = null;
   track.onended = null;
@@ -126,7 +135,7 @@ const createLanding = (): HTMLElement => {
     state.yesAttempts = 0;
     state.activeGift = null;
     state.openingGift = null;
-    playBackgroundMusic();
+    playBackgroundMusic(false);
     render();
   });
   yes.classList.add('yes-float');
@@ -499,6 +508,9 @@ const closeGift = (): void => {
   window.clearTimeout(state.giftNoticeTimer);
   state.giftNoticeTimer = 0;
   render();
+  if (state.screen === 'gifts') {
+    playBackgroundMusic(true);
+  }
 };
 
 const openGift = (gift: GiftId): void => {
@@ -575,12 +587,13 @@ const playEffect = (src: string, volume: number): void => {
   });
 };
 
-const playBackgroundMusic = (): void => {
+const playBackgroundMusic = (resume = false): void => {
   playAudio(assetPath('audio/bairan.mp3'), { loop: true, volume: 0.5 }, 'background', playAmbientFallback);
   const track = audio.background;
   if (track) {
     track.loop = false;
-    track.currentTime = BAIRAN_LOOP_START;
+    const resumeTime = resume && state.backgroundResumeTime != null ? state.backgroundResumeTime : BAIRAN_LOOP_START;
+    track.currentTime = resumeTime;
     track.onloadedmetadata = () => {
       if (track.currentTime < BAIRAN_LOOP_START || track.currentTime > BAIRAN_LOOP_END) {
         track.currentTime = BAIRAN_LOOP_START;
@@ -593,6 +606,7 @@ const playBackgroundMusic = (): void => {
       }
     };
   }
+  state.backgroundResumeTime = null;
 };
 
 const BDAY_LOOP_START = 16;
@@ -601,7 +615,8 @@ const BDAY_LOOP_END = 86;
 const playBirthdayMusic = (): void => {
   playAudio(assetPath('audio/bdaysong.mp3'), { loop: true, volume: 0.72 }, 'birthday', playHappyBirthdayFallback);
   if (audio.background) {
-    audio.background.pause();
+    state.backgroundResumeTime = audio.background.currentTime;
+    pauseAudioTrack(audio.background);
   }
   const track = audio.birthday;
   if (track) {
@@ -623,16 +638,10 @@ const playBirthdayMusic = (): void => {
 
 const pauseBirthdayMusic = (): void => {
   if (audio.birthday) {
-    audio.birthday.pause();
-    audio.birthday.currentTime = 0;
-    audio.birthday.onloadedmetadata = null;
-    audio.birthday.ontimeupdate = null;
+    stopAudioTrack(audio.birthday);
     audio.birthday = null;
   }
   stopSynth();
-  if (state.screen === 'gifts') {
-    playBackgroundMusic();
-  }
 };
 
 const playAudio = (
