@@ -34,6 +34,17 @@ const audio = {
 
 const assetPath = (path: string): string => `${import.meta.env.BASE_URL}${path.replace(/^\/+/, '')}`;
 
+const sameAsset = (track: HTMLAudioElement, src: string): boolean => track.src === new URL(src, document.baseURI).href;
+
+const stopAudioTrack = (track: HTMLAudioElement): void => {
+  track.pause();
+  track.currentTime = 0;
+  track.onloadedmetadata = null;
+  track.ontimeupdate = null;
+  track.onended = null;
+  track.onerror = null;
+};
+
 const BAIRAN_LOOP_START = 10;
 const BAIRAN_LOOP_END = 248;
 const SOUND_EFFECTS = {
@@ -632,11 +643,15 @@ const playAudio = (
 ): void => {
   stopSynth();
   const current = audio[key];
-  if (current && current.src.includes(src)) {
+  if (current && sameAsset(current, src)) {
     current.loop = options.loop;
     current.volume = options.volume;
     void current.play().catch(() => undefined);
     return;
+  }
+
+  if (current) {
+    stopAudioTrack(current);
   }
 
   const track = new Audio(src);
